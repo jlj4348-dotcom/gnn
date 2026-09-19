@@ -1,17 +1,32 @@
 # AI Framework - core cencepts
 
-Block -> Network -> Model/Trainer 로 조합된다.
-Block, network 안에서 연결은 connectionSpec 으로 정의하며 model, trainer 에서는 checkpoint 로 가중치를 관리한다.
+Neural network 를 graph 로 표현하는 ai framework <br>
+Graph = Node + Edge
 
-| 개념 | 설명 | Runnable | 문서 |
-| --- | --- | --- | --- |
-| ConnectionSpec | Layer 간 연결 방식 (Fully Connected, One2One, Custom) | ❌ | [ConnectionSpec.md] |
-| Block | 하나 이상의 layer 간의 linear 조합으로 framework 의 기본 단위 | ❌ | [Block.md] |
-| Network | Block 들의 연결 graph 로 복잡한 연결을 표현 | ❌ | [Network.md] |
-| Checkpoint | Weight/Bias 의 snapshot (.ckpt) | ❌ | [Checkpoint.md] |
-| Model | run() 함수를 위한 전용 경량 추론 객체 (Network, Checkpoint, DeviceManager 필요) | ✔️ | [Model.md] |
-| Trainer | Network + Checkpoint + TrainingConfig + DeviceManager 로 checkpoint 관리 | ✔️ | [Trainer.md] |
-| DeviceManager | Device 관리 객체로 tensor 연산 위임 | ❌ | [DeviceManager.md] |
+## Neural Network Graph
+**DAG (Directed Acyclic Graph)** 로 표현되야 한다
+
+### Node
+
+Neural network 에서 perceptron 에 해당하며 INPUT/HIDDEN/OUPUT type 중에서 하나의 type 을 반드시 갖는다 <br>
+INPUT node (depth = 0) 를 시작으로 OUTPUT node 까지의 경로에서 depth 가 layer 번호로 간주한다
+
+| Type | Description |
+| -- | -- |
+| INPUT | 시작 node, depth = 0 |
+| HIDDEN | 중간 node |
+| OUTPUT | 끝 node |
+
+### Edge
+
+Neural network 에서 perceptron 간 연결에 해당하며 operator 를 통해 node 간의 데이터를 전달한다 <br>
+Operator 로는 activation function, weight, bias, dropdown, 양자화 등을 표현한다
+
+| 대분류 | 소분류 | Description | 예시 |
+| -- | -- | -- | -- |
+| Flow Operator | Single-Edge Operator | **순서**에 따라서 결과가 달라지는 operator | weight, bias, act. function |
+| Flow Operator | Cross-Edge Operator | **순서**에 따라서 결과가 달라지는 operator | cross-layer normalization |
+| Switch Operator | - | 순서가 영향을 주지 않는 operator (optional) | dropdown, 양자화 |
 
 
 ## User Interface
@@ -21,26 +36,3 @@ Block, network 안에서 연결은 connectionSpec 으로 정의하며 model, tra
 | CLI | 명령어 기반 학습/추론 인터페이스 제공 |
 | GUI | Godot 엔진 기반 graphic user interface 제공 |
 
-
-## Directory Hierarchy
-
-```
-GNN
-├─ docs
-|	├─ AGENTS.md
-|	├─ 
-├─ src
-|	├─ core
-|	|
-|	├─ cli
-|	└─ gui
-|
-├─ include
-|
-├─ tests
-|
-├─ CMake
-|
-├─ config
-├─ 
-```
