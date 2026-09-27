@@ -1,9 +1,9 @@
-#include "gnn/graph/node.hpp"
+#include "gnn/graph/Node.hpp"
 
 using namespace gnn::graph;
 
 
-void node::remove_edge(const entity_id& edge) {
+void Node::remove_edge(const entity_id& edge) {
 
 	entity_iter it = std::find(edges.begin(), edges.end(), edge);
 

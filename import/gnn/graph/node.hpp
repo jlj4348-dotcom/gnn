@@ -1,14 +1,15 @@
 #pragma once
 
-#include "attributes.hpp"
+#include "Attributes.hpp"
 
 
 namespace gnn::graph {
 
-class node {
+class Node {
 private:
 	entity_id id;
-	entity_name name;
+	entity_name name = "";
+	entity_id parent = "";
 	
 	node_type type;
 	node_role role;
@@ -16,17 +17,20 @@ private:
 	std::vector<entity_id> edges;
 
 public:
-	node(entity_id id, entity_name name, node_type type = node_type::UNKNOWN, node_role role = node_role::HIDDEN)
-		: id(std::move(id)), name(std::move(name)), type(type), role(role) {
+	Node(entity_id id, node_type type = node_type::UNKNOWN, node_role role = node_role::HIDDEN)
+		: id(std::move(id)), type(type), role(role) {
 		//constructor
 	};
-	~node() = default;
+	~Node() = default;
 
 	const entity_id& get_id() const {
 		return id;
 	};
 	const entity_name& get_name() const {
 		return name;
+	};
+	const entity_id& get_parent() const {
+		return parent;
 	};
 	const node_type get_type() const {
 		return type;
@@ -40,6 +44,9 @@ public:
 
 	void set_name(const entity_name& name) {
 		this->name = name;
+	};
+	void set_parent(const entity_id& parent) {
+		this->parent = parent;
 	};
 	void set_role(const node_role role) {
 		this->role = role;

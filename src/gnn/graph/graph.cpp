@@ -1,20 +1,37 @@
+#include "gnn/graph/Graph.hpp"
 
-#include "graph.hpp"
+using namespace gnn::graph;
 
 
+void Graph::remove_node(const entity_id& node) {
 
-class Node {
-private:
-	perceptron_type type;
+	entity_iter it = std::find(nodes.begin(), nodes.end(), node);
 
-public:
-	Node(perceptron_type type) : type(type) {}
-	perceptron_type get_type() { return type; }
+	if (it == nodes.end()) {
+		return;
+	}
+
+	std::iter_swap(it, nodes.end() - 1);
+	nodes.pop_back();
 };
 
 
+int Graph::add_perceptron_to_layer(const entity_id& node, const entity_id& layer) {
 
+	return SUCCESS;
+}
 
-class Model {
+int Graph::remove_perceptron_from_layer(const entity_id& node) {
 
-};
+	return SUCCESS;
+}
+
+int Graph::group_perceptrons(const entity_id nodes[]) {
+
+	return SUCCESS;
+}
+
+int Graph::ungroup_layer(const entity_id& layer) {
+
+	return SUCCESS;
+}

@@ -8,6 +8,8 @@
 
 namespace gnn::graph {
 
+#define SUCCESS 0
+
 using entity_id   = std::string;
 using entity_name = std::string;
 using entity_iter = std::vector<entity_id>::iterator;
