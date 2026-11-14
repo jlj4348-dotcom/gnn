@@ -54,7 +54,12 @@ dropout instance, checkpoint, 실험용 복제본은 모두 **부모 Training Gr
 - checkpoint 는 특정 Training Graph 에 종속되며 **Training Graph id + 날짜/시간** 으로 식별한다.
 - Training Graph 를 **clone** 하여 learning rate 등을 달리한 실험을 비교할 수 있다. clone 의 원본은 현재 상태 또는 선택한 checkpoint 의 상태이다. 결과가 좋으면 사용자가 요청해서 원본에 merge 할 수 있다.
 - 부모의 구조가 clone 시점과 다르면 merge 할 수 없다.
-- Design Graph 를 수정하면 weight 는 edge id 와 shape 가 일치하는 것만 이어받고, 기존 checkpoint 는 무효로 표시한다.
+- Training Graph 의 구조는 만들어진 뒤 바뀌지 않는다. 그래서 훈련 결과(weight, checkpoint)는 Design Graph 편집으로 사라지지 않는다.
+
+### Design Graph 편집
+- 모든 변경은 command 로 처리하며 **undo/redo** 를 지원한다 (Design Graph 편집에만 적용. 훈련을 되돌리는 것은 checkpoint 의 역할이다).
+- **분기**: Training Graph 가 있는 Design Graph 의 구조를 편집하면 새 Design Graph 로 분기해서 편집한다. 원본과 그 Training Graph 는 그대로 남는다. name, description, 화면 위치, dropout 정의 변경은 분기하지 않는다.
+- 분기한 Design Graph 에서 새 Training Graph 를 만들 때 부모의 Training Graph 를 지정하면, edge id 와 shape 가 일치하는 weight 를 이어받는다.
 
 ### 식별과 저장
 - 모든 graph, node, edge 는 id 를 가진다. graph id 는 project 카운터가, node/edge id 는 graph 마다의 카운터가 발급하며 삭제된 id 는 재사용하지 않는다. **(graph id, node/edge id)** 쌍이 전역에서 유일하다.
