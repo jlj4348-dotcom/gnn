@@ -1,0 +1,84 @@
+# Inference Graph 예시 (Training Graph "mnist_run1" 의 스냅샷)
+# 위치: <workspace>/<project 이름>/<Design Graph 이름>/inference/<Inference Graph 이름>/graph.yaml
+#       (project 이름: demo, Design Graph 이름: mnist, Inference Graph 이름: mnist_run1_final)
+# 같은 폴더의 values.bin 에 값이 있다 (이 예시에는 만들지 않았다). 예시는 허구이다.
+#
+# - 사용자가 요청할 때만 만들고 만든 뒤에는 바뀌지 않는다. C++ export 의 기준이다.
+# - Training Graph 의 훈련 전용 연산(dropout 등)은 추론 동작으로 바꾸거나 뺀 구조이다 (이 예시에는 해당하는 연산이 없다).
+# - 새 graph 이므로 node/edge 가 자기 카운터로 새 id 를 받는다. 번호가 Training Graph 와 우연히 같아 보여도
+#   서로 다른 graph 의 id 이며, 대응은 각 항목의 source (Training Graph 의 node/edge id) 로 안다.
+# - 추론에는 Design Graph 의 perceptron id 가 필요 없으므로 rows/cols 는 쓰지 않고, 일부 행만 맡는 연산은
+#   tensor 의 인덱스(0 부터)로 적는다.
+
+format_version: 1
+save_seq: 1
+
+graph:
+  kind: inference
+  description: mnist_run1 의 훈련 마지막 상태
+  next_id: 25
+  training:                               # 변환 원본 Training Graph (같은 Design Graph 안의 training/mnist_run1/)
+    graph: mnist_run1
+    state: current                        # current 또는 checkpoint 날짜시간 (스냅샷을 찍은 상태)
+    taken_at: "2026-11-15T14:20:00"       # 스냅샷을 만든 시각
+  # export 와 값 검증에 쓰는 입출력 정보
+  input:  {node: 1,  shape: [784]}
+  output: {node: 12, shape: [10]}
+
+nodes:
+  - {id: 1, op: input, source: 1, shape: [784]}
+
+  # --- hidden1 (128 개): perceptron 960 에 해당하는 인덱스 66 만 tanh ---
+  - id: 2
+    op: matmul
+    source: 2
+    params:
+      weight: {shape: [128, 784], dtype: float32, offset: 0}
+  - id: 3
+    op: bias_add
+    source: 3
+    params:
+      bias: {shape: [128], dtype: float32, offset: 401408}
+  - {id: 4, op: relu,       source: 4, rows: "0-65, 67-127"}
+  - {id: 5, op: tanh,       source: 5, rows: "66"}
+  - {id: 6, op: rows_merge, source: 6, rows: "0-127"}
+
+  # --- hidden2 (64 개) ---
+  - id: 7
+    op: matmul
+    source: 7
+    params:
+      weight: {shape: [64, 128], dtype: float32, offset: 401920}
+  - id: 8
+    op: bias_add
+    source: 8
+    params:
+      bias: {shape: [64], dtype: float32, offset: 434688}
+  - {id: 9, op: relu, source: 9}
+
+  # --- output (10 개) ---
+  - id: 10
+    op: matmul
+    source: 10
+    params:
+      weight: {shape: [10, 64], dtype: float32, offset: 434944}
+  - id: 11
+    op: bias_add
+    source: 11
+    params:
+      bias: {shape: [10], dtype: float32, offset: 437504}
+  - {id: 12, op: softmax, source: 12}
+
+edges:
+  - {id: 13, from: 1,  to: 2,  source: 13}
+  - {id: 14, from: 2,  to: 3,  source: 14}
+  - {id: 15, from: 3,  to: 4,  source: 15}
+  - {id: 16, from: 3,  to: 5,  source: 16}
+  - {id: 17, from: 4,  to: 6,  source: 17}
+  - {id: 18, from: 5,  to: 6,  source: 18}
+  - {id: 19, from: 6,  to: 7,  source: 19}
+  - {id: 20, from: 7,  to: 8,  source: 20}
+  - {id: 21, from: 8,  to: 9,  source: 21}
+  - {id: 22, from: 9,  to: 10, source: 22}
+  - {id: 23, from: 10, to: 11, source: 23}
+  - {id: 24, from: 11, to: 12, source: 24}
