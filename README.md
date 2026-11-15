@@ -36,7 +36,7 @@ Design Graph ──(최적화)──▶ Training Graph ──(추론 변환)─�
 
 ### 훈련
 - **freeze**: 훈련 설정에서 node 를 지정하면 그 weight 는 훈련해도 바뀌지 않는다 (node 종류와 무관).
-- **dropout**: Design Graph 에서 node 와 확률 p 를 지정한다. 훈련 step 마다 일부 node 를 비활성화한 instance 로 훈련하고 결과를 가장 큰 graph 에 반영한다. 비활성화 단위는 node 이며, node 가 perceptron 인지 layer 인지 network 인지는 구분하지 않는다. layer 를 지정할 때는 layer 전체를 끌지, layer 안의 perceptron 을 각각 끌지 선택한다.
+- **dropout**: Training Graph 마다 대상 node(Design Graph 의 id)와 확률 p 를 지정한다. 훈련 step 마다 일부 node 를 비활성화한 instance 로 훈련하고 결과를 가장 큰 graph 에 반영한다. 비활성화 단위는 node 이며, node 가 perceptron 인지 layer 인지 network 인지는 구분하지 않는다. layer 를 지정할 때는 layer 전체를 끌지, layer 안의 perceptron 을 각각 끌지 선택한다.
 - **loss**: 사용자가 선택하며 Trainer 가 붙인다. Training Graph 는 순전파만 가진다.
 - **양자화**: 선택 옵션이며 Trainer 가 수행한다. 훈련 중에도 적용하거나 바꿀 수 있다.
 - **통계**: 훈련별로 heatmap 등 통계를 제공한다.
@@ -46,9 +46,9 @@ dropout instance, checkpoint, 실험용 복제본은 모두 **부모 Training Gr
 
 | 종류 | mask | merge | 수명 |
 |---|---|---|---|
-| dropout instance | 확률 p 로 일부 비활성 | 매 step 자동 | 일시적 (graph id 없음) |
+| dropout instance | 확률 p 로 일부 비활성 | 매 step 자동 | 일시적 (이름 없음, 저장하지 않음) |
 | checkpoint | 전부 활성 | 되돌리기를 요청할 때 | 부모에 종속, 부모 id + 날짜/시간으로 식별 |
-| 실험용 clone | 전부 활성 | 사용자가 요청할 때만 | 독립 Training Graph (새 graph id) |
+| 실험용 clone | 전부 활성 | 사용자가 요청할 때만 | 독립 Training Graph (새 이름) |
 
 - 사용자가 요청하거나 설정한 시점에 checkpoint(snapshot)를 저장하고, 목록에서 골라 되돌릴 수 있다. 되돌리기는 checkpoint 를 부모에 merge 하는 것이며, 그 전에 현재 상태를 남길지 묻는다.
 - checkpoint 는 특정 Training Graph 에 종속되며 **Training Graph id + 날짜/시간** 으로 식별한다.
@@ -58,12 +58,13 @@ dropout instance, checkpoint, 실험용 복제본은 모두 **부모 Training Gr
 
 ### Design Graph 편집
 - 모든 변경은 command 로 처리하며 **undo/redo** 를 지원한다 (Design Graph 편집에만 적용. 훈련을 되돌리는 것은 checkpoint 의 역할이다).
-- **분기**: Training Graph 가 있는 Design Graph 의 구조를 편집하면 새 Design Graph 로 분기해서 편집한다. 원본과 그 Training Graph 는 그대로 남는다. name, description, 화면 위치, dropout 정의 변경은 분기하지 않는다.
+- **분기**: Training Graph 가 있는 Design Graph 의 구조를 편집하면 새 Design Graph 로 분기해서 편집한다. 원본과 그 Training Graph 는 그대로 남는다. name, description, 화면 위치 변경은 분기하지 않는다.
 - 분기한 Design Graph 에서 새 Training Graph 를 만들 때 부모의 Training Graph 를 지정하면, edge id 와 shape 가 일치하는 weight 를 이어받는다.
 - **텍스트 모드**와 **그래픽 모드**로 Design Graph 를 본다. 텍스트 모드는 perceptron 까지 모두 보고 편집하며 CLI/YAML 의 UI 버전이다. 그래픽 모드는 layer 와 subnetwork 만 그려서 큰 graph 도 다룰 수 있다. network 는 폴더처럼 들어가서 본다.
 
 ### 식별과 저장
-- 모든 graph, node, edge 는 id 를 가진다. graph id 는 project 카운터가, node/edge id 는 graph 마다의 카운터가 발급하며 삭제된 id 는 재사용하지 않는다. **(graph id, node/edge id)** 쌍이 전역에서 유일하다.
+- graph 는 파일에서는 **이름**으로 식별하고(폴더 구조 `<project 이름>/<graph 이름>/design`, `training/<이름>`, `inference/<이름>` — Design Graph 폴더 안에 그것에서 만든 Training/Inference Graph 가 모인다. 같은 이름에 저장하면 덮어쓸지 묻는다), 메모리에 올릴 때 **graph id** 를 발급받아 그 뒤로는 id 로 동작한다. graph id 는 저장하지 않으며 실행마다 달라질 수 있다.
+- node 와 edge 는 id 를 가지며 graph 마다의 카운터가 발급하고 삭제된 id 는 재사용하지 않는다. 이 id 는 파일에 저장된다. **(graph, node/edge id)** 쌍이 전역에서 유일하다.
 - 저장 형식은 **구조 = YAML, 값 = binary** 이다.
 - 훈련이 끝나면 Inference Graph 를 만들어 C++ 코드로 export 한다.
 

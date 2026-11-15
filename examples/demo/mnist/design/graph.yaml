@@ -1,0 +1,113 @@
+# Design Graph 예시 (MNIST 모양의 작은 network)
+# 위치: <workspace>/<project 이름>/<Design Graph 이름>/design/graph.yaml  (project 이름: demo, Design Graph 이름: mnist)
+# 파일에서 graph 는 (종류, project 이름, graph 이름) 으로 식별한다. 이름은 폴더 이름이 기준이라 이 파일에 쓰지 않는다.
+# graph id 는 메모리에 올릴 때 발급하며 저장하지 않는다. (node/edge id 는 아래처럼 파일에 저장된다)
+# 구조만 담는다. weight/bias 값, dropout, freeze, loss 는 여기에 없다.
+
+format_version: 1
+save_seq: 1
+
+graph:
+  kind: design
+  description: 입력 784 -> encoder(128 -> 64) -> 출력 10, 입력에서 출력으로 가는 skip 연결 포함
+  next_id: 1296       # 이 graph 의 entity(node/edge) 카운터의 다음 값. 삭제된 id 는 재사용하지 않는다
+
+# node 와 edge 는 하나의 id 공간을 공유한다 (perceptron 도 id 를 가진다).
+nodes:
+  - id: 1
+    kind: layer
+    name: input
+    size: 784
+    perceptrons: 101-884
+    bias: false
+
+  - id: 2
+    kind: layer
+    name: hidden1
+    size: 128
+    # 연속이 아닌 구간 예: 951~959 는 분할/삭제 등으로 사라진 id 이다. 적힌 순서가 perceptron 의 순서이다.
+    perceptrons: 885-950, 960-1021
+    bias: true
+    activation: {name: relu}
+    exceptions:                   # 공통 속성과 다른 perceptron 만 덧붙인다
+      960: {activation: {name: tanh}}
+
+  - id: 3
+    kind: layer
+    name: hidden2
+    size: 64
+    perceptrons: 1022-1085
+    bias: true
+    activation: {name: relu}
+
+  - id: 4
+    kind: layer
+    name: output
+    size: 10
+    perceptrons: 1086-1095
+    bias: true
+    activation: {name: softmax}
+
+  - id: 5
+    kind: network
+    name: encoder
+    description: hidden1 + hidden2
+    children: [2, 3]
+    ports:                        # 바깥과는 port 로만 연결된다
+      - {name: in,  dir: input,  node: 2}
+      - {name: out, dir: output, node: 3}
+
+  # 아래 1098 은 다른 graph 에서 붙인(import) network 이다. 일반 network 와 같은 모양이며,
+  # 붙인 것인지는 맨 아래 origin 블록에 등록돼 있는지로 안다 (붙인 network 는 구조를 바꿀 수 없다).
+  - id: 1098
+    kind: network
+    name: pretrained
+    description: 따로 훈련해 둔 encoder 를 붙인 것
+    children: [1099, 1100]
+    ports:
+      - {name: in,  dir: input,  node: 1099}
+      - {name: out, dir: output, node: 1100}
+  - {id: 1099, kind: layer, name: p_hidden1, size: 128, perceptrons: 1102-1229, bias: true, activation: {name: relu}}
+  - {id: 1100, kind: layer, name: p_hidden2, size: 64,  perceptrons: 1230-1293, bias: true, activation: {name: relu}}
+
+# edge 는 network 경계를 넘나들 수 있으므로 최상위에 평평하게 둔다.
+# 끝점은 layer 또는 network 의 port 이다. port 가 하나뿐인 layer 는 이름을 생략한다.
+edges:
+  - {id: 6, from: {node: 1},              to: {node: 5, port: in}, kind: dense}
+  - {id: 7, from: {node: 2},              to: {node: 3},           kind: dense}   # network 안쪽 연결
+  - {id: 8, from: {node: 5, port: out},   to: {node: 4},           kind: dense}
+  - {id: 9, from: {node: 1},              to: {node: 4},           kind: dense}   # skip 연결 (network 를 건너뜀)
+  - {id: 1101, from: {node: 1099},        to: {node: 1100},        kind: dense}   # 붙인 network 안쪽 연결
+  - {id: 1294, from: {node: 1},           to: {node: 1098, port: in},  kind: dense}
+  - {id: 1295, from: {node: 1098, port: out}, to: {node: 4},       kind: dense}
+
+# edge group: 소속 edge 의 id 목록만 가진다. group 끼리 겹쳐도 된다.
+edge_groups:
+  - {id: 1096, name: all,     edges: [6, 7, 8, 9]}
+  - {id: 1097, name: encoder, edges: [6, 7, 8]}
+
+# 화면 위치 (구조와 분리. 이 값만 바꾸는 편집은 분기하지 않는다)
+ui:
+  1: {x: 0,   y: 0}
+  5: {x: 200, y: 0}
+  4: {x: 400, y: 0}
+  1098: {x: 200, y: 150}
+
+# 붙인(import) network 의 원본 참조와 id 대응. 붙인 network 가 없으면 비어 있다.
+# (예시는 허구이다. encoder_v1 이라는 Training Graph 가 실제로 있다는 뜻이 아니다.)
+origin:
+  - node_id: 1098                       # 이 graph 에서 붙인 network 의 node id (위 nodes 목록의 id)
+    source:
+      kind: training                    # 원본 graph 의 종류 (design 또는 training). load 때 파일의 graph.kind 와 비교한다
+      design: pretrained_enc            # 원본 Training Graph 가 속한 Design Graph 의 이름 (kind 가 training 일 때만 쓴다)
+      graph: encoder_v1                 # 원본 graph 의 이름 -> demo/pretrained_enc/training/encoder_v1/. 이름을 바꾸면 이 값도 함께 고쳐진다
+      node_id: 12                       # 원본 graph 안의 network 의 node id
+    # 붙일 때 새로 받은 id 와 원본 id 의 대응 (이 graph 의 id: 원본 id). 구간은 길이가 같아야 한다.
+    # load 와 weight 승계에 사용한다. load 는 사용자가 요청할 때만 하며, 원본의 값은 Training Graph 쪽에 가져온다.
+    id_map:
+      1098: 12          # network
+      1099: 13          # layer p_hidden1
+      1100: 14          # layer p_hidden2
+      1101: 15          # edge
+      1102-1229: 301-428    # p_hidden1 의 perceptron 128 개
+      1230-1293: 429-492    # p_hidden2 의 perceptron 64 개

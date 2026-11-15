@@ -1,0 +1,89 @@
+# Training Graph 예시 (design/graph.yaml 의 Design Graph "mnist" 에서 edge group "encoder" 를 최적화한 것)
+# 위치: <workspace>/<project 이름>/<Design Graph 이름>/training/<Training Graph 이름>/graph.yaml
+#       (project 이름: demo, Design Graph 이름: mnist, Training Graph 이름: mnist_run1)
+# 소속 Design Graph 는 부모 폴더(mnist)로 정해지므로 파일에 이름을 쓰지 않는다.
+# 같은 폴더에 values.bin(값), trainer.yaml(freeze/dropout/loss 등), checkpoints/ 가 함께 있다. (이 예시에는 만들지 않았다)
+# Design Graph 와 달리 perceptron 이 아니라 tensor 연산 단위이다. 예시는 허구이다.
+
+format_version: 1
+save_seq: 3
+
+graph:
+  kind: training
+  description: mnist 기본 훈련 (hidden1 의 perceptron 960 만 tanh)
+  next_id: 25          # node/edge 카운터의 다음 값. 이 graph 가 자기 카운터로 새로 발급한 id 이다
+  design:
+    edge_group: 1097                      # 최적화한 Design Graph 의 edge group id (encoder)
+    fingerprint: "sha256:3b7d1e0c5a94f2e86c0d7b19a45f3e28d1c60b9a7e4f5d2381c9a60b7e4d5f12"   # 만들 때의 Design Graph 구조 지문. 불러올 때 다르면 경고한다
+  clone_of: null                          # clone 이면 {graph: 부모 이름, from: current | checkpoint 20261114-153000}
+
+# 연산 node. source 는 원본 Design Graph 의 node/edge id 이며, (source, role) 이 식별 키이다.
+# rows/cols 는 Design Graph 의 perceptron id 구간이며 적힌 순서가 tensor 의 인덱스이다.
+nodes:
+  - {id: 1, op: input, source: 1, shape: [784]}
+
+  # --- hidden1 (Design layer 2, 128 개) ---
+  - id: 2
+    op: matmul
+    source: {node: 2, edge: 6}            # layer 2 의 입력 edge 6 (layer 1 -> encoder.in)
+    role: weight
+    params:
+      weight: {shape: [128, 784], dtype: float32, offset: 0,
+               rows: "885-950, 960-1021", cols: "101-884"}
+  - id: 3
+    op: bias_add
+    source: 2
+    role: bias
+    params:
+      bias: {shape: [128], dtype: float32, offset: 401408, rows: "885-950, 960-1021"}
+  # perceptron 960 만 tanh 이므로 activation 을 rows 로 나누고 rows_merge 로 합친다
+  - {id: 4, op: relu, source: 2, role: "activation", rows: "885-950, 961-1021"}
+  - {id: 5, op: tanh, source: 2, role: "activation", rows: "960"}
+  - {id: 6, op: rows_merge, source: 2, role: merge, rows: "885-950, 960-1021"}
+
+  # --- hidden2 (Design layer 3, 64 개) ---
+  - id: 7
+    op: matmul
+    source: {node: 3, edge: 7}
+    role: weight
+    params:
+      weight: {shape: [64, 128], dtype: float32, offset: 401920,
+               rows: "1022-1085", cols: "885-950, 960-1021"}
+  - id: 8
+    op: bias_add
+    source: 3
+    role: bias
+    params:
+      bias: {shape: [64], dtype: float32, offset: 434688, rows: "1022-1085"}
+  - {id: 9, op: relu, source: 3, role: activation}
+
+  # --- output (Design layer 4, 10 개) ---
+  - id: 10
+    op: matmul
+    source: {node: 4, edge: 8}            # encoder.out -> layer 4
+    role: weight
+    params:
+      weight: {shape: [10, 64], dtype: float32, offset: 434944,
+               rows: "1086-1095", cols: "1022-1085"}
+  - id: 11
+    op: bias_add
+    source: 4
+    role: bias
+    params:
+      bias: {shape: [10], dtype: float32, offset: 437504, rows: "1086-1095"}
+  - {id: 12, op: softmax, source: 4, role: activation}
+
+# 값이 흐르는 방향. 연산 node 가 rows 로 일부 행만 고르는 경우에도 edge 는 전체 tensor 를 나른다.
+edges:
+  - {id: 13, from: 1,  to: 2}
+  - {id: 14, from: 2,  to: 3}
+  - {id: 15, from: 3,  to: 4}
+  - {id: 16, from: 3,  to: 5}
+  - {id: 17, from: 4,  to: 6}
+  - {id: 18, from: 5,  to: 6}
+  - {id: 19, from: 6,  to: 7}
+  - {id: 20, from: 7,  to: 8}
+  - {id: 21, from: 8,  to: 9}
+  - {id: 22, from: 9,  to: 10}
+  - {id: 23, from: 10, to: 11}
+  - {id: 24, from: 11, to: 12}
