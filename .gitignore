@@ -1,0 +1,23 @@
+# 빌드 결과
+build/
+out/
+cmake-build-*/
+CMakeUserPresets.json
+
+# Visual Studio
+.vs/
+*.user
+*.vcxproj.user
+
+# 에이전트 지침 문서
+AGENTS.md
+
+# 컴파일 산출물
+*.obj
+*.o
+*.lib
+*.a
+*.exe
+*.pdb
+*.ilk
+*.exp
